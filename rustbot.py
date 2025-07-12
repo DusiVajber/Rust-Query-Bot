@@ -3,9 +3,11 @@ from discord import app_commands
 import a2s
 import json
 import os
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
-TOKEN = "g_Z8xInFCImSYCNMIOPFp2dcDV8oedwR" # Replace with your bot token
+load_dotenv()
+TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 DATA_FILE = "servers.json" # File to store linked servers
 
 intents = discord.Intents.default()

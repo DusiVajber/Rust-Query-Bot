@@ -5,6 +5,7 @@ import json
 import os
 from dotenv import load_dotenv
 import aiohttp
+from bs4 import BeautifulSoup
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -72,37 +73,41 @@ async def map_cmd(interaction: discord.Interaction, name: str):
 
     try:
         async with aiohttp.ClientSession() as session:
-            url = f"https://api.battlemetrics.com/servers?filter[game]=rust&filter[search]={ip}:{port}"
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    body = await resp.text()
-                    await interaction.followup.send(f"❌ BattleMetrics returned {resp.status}:\n```{body[:500]}```")
-                    return
-
+            # Step 1: Get server ID from BattleMetrics API
+            api_url = f"https://api.battlemetrics.com/servers?filter[game]=rust&filter[search]={ip}:{port}"
+            async with session.get(api_url) as resp:
                 data = await resp.json()
-                if "data" not in data or not data["data"]:
-                    await interaction.followup.send("❌ No server found on BattleMetrics.")
-                    return
 
-                for server in data["data"]:
+                for server in data.get("data", []):
                     attr = server["attributes"]
-                    bm_ip = attr.get("ip")
-                    bm_port = attr.get("port")
-                    if bm_ip == ip and bm_port == port:
-                        rustmaps_url = attr.get("details", {}).get("rust_maps_url")
-                        if rustmaps_url:
-                            await interaction.followup.send(f"🗺️ RustMaps link: {rustmaps_url}")
-                        else:
-                            server_id = server["id"]
-                            await interaction.followup.send(
-                                f"⚠️ RustMaps link not available.\n🔗 Server page: https://www.battlemetrics.com/servers/rust/{server_id}"
-                            )
+                    if attr.get("ip") == ip and attr.get("port") == port:
+                        server_id = server["id"]
+
+                        # Step 2: Fetch BattleMetrics server page HTML
+                        html_url = f"https://www.battlemetrics.com/servers/rust/{server_id}"
+                        async with session.get(html_url) as page_resp:
+                            html_content = await page_resp.text()
+
+                            # Step 3: Parse HTML and find rustmaps.com link
+                            soup = BeautifulSoup(html_content, "html.parser")
+                            rustmaps_link = None
+                            for a in soup.find_all("a", href=True):
+                                href = a['href']
+                                if "rustmaps.com/map/" in href:
+                                    rustmaps_link = href
+                                    break
+
+                            if rustmaps_link:
+                                await interaction.followup.send(f"🗺️ RustMaps link: {rustmaps_link}")
+                            else:
+                                await interaction.followup.send(
+                                    f"⚠️ RustMaps link not found on the page.\n🔗 {html_url}"
+                                )
                         return
 
                 await interaction.followup.send("❌ Exact IP/port match not found in BattleMetrics.")
     except Exception as e:
         await interaction.followup.send(f"❌ Exception: {type(e).__name__}: {e}")
-
 
 # --- /wipe Command ---
 @tree.command(name="wipe", description="Show server's last wipe estimate (disabled, uptime unsupported)")

@@ -15,7 +15,7 @@ intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-# Load or initialize server data
+# Load or initialize linked server list
 def load_servers():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
@@ -113,7 +113,7 @@ async def map_cmd(interaction: discord.Interaction, name: str):
 @tree.command(name="wipe", description="Show server's last wipe estimate (disabled, uptime unsupported)")
 @app_commands.describe(name="Name of the linked server")
 async def wipe(interaction: discord.Interaction, name: str):
-    await interaction.response.send_message("⚠️ Rust servers do not expose uptime over A2S. Try using an API like BattleMetrics.")
+    await interaction.response.send_message("⚠️ Rust servers do not expose uptime over A2S. Try using an API like BattleMetrics.\nThis feature is still in development by dule.")
 
 # --- /list Command ---
 @tree.command(name="list", description="List all linked servers")
